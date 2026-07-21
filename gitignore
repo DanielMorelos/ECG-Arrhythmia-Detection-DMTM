@@ -1,0 +1,36 @@
+# Data files (large / private)
+*.h5
+*.hdf5
+*.npy
+*.npz
+*.csv
+
+# Model checkpoints and weights
+*.keras
+*.weights.h5
+*.pkl
+checkpoints/
+checkpointssmg3gru_1/
+
+# Training artifacts
+*.png
+!results/figures/.gitkeep
+results/metrics.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.ipynb_checkpoints/
+.venv/
+venv/
+env/
+
+# OS / Editor
+.DS_Store
+.vscode/
+.idea/
+
+# Google Colab / Drive artifacts
+/content/
