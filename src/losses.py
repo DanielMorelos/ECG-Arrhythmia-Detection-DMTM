@@ -14,7 +14,7 @@ def focal_loss(gamma: float = 3.0, alpha: float = 1.0, label_smoothing: float = 
 
     Parameters
     ----------
-    gamma          : focusing exponent (higher → harder examples weighted more)
+    gamma          : focusing exponent (higher = harder examples weighted more)
     alpha          : scaling factor
     label_smoothing: soft label coefficient
     """
