@@ -9,6 +9,7 @@
 *.keras
 *.weights.h5
 *.pkl
+data/
 checkpoints/
 checkpointssmg3gru_1/
 
