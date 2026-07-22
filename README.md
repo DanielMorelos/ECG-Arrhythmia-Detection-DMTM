@@ -76,23 +76,43 @@ ECG-Arrhythmia-Detection-DMTM/
 ## Installation
 
 ```bash
-git clone https://github.com/DanielMorelos/ecg-arrhythmia-classifier.git
-cd ecg-arrhythmia-classifier
+git clone https://github.com/DanielMorelos/ECG-Arrhythmia-Detection-DMTM.git
+cd ECG-Arrhythmia-Detection-DMTM
 pip install -r requirements.txt
 ```
 
 ## Usage
 
+Run the pipeline in order — each script consumes artifacts produced by the previous one.
+
 ```bash
+# 1. Train the 5-fold cross-validation models
 python src/train.py \
   --train-data path/to/training_set.h5 \
   --test-data path/to/test_set.h5 \
   --checkpoint-dir path/to/checkpoints/
 
-python src/evaluate.py --checkpoint-dir path/to/checkpoints/
+# 2. Reload checkpoints, fine-tune, and rebuild the OOF ensemble
+python src/evaluate.py \
+  --train-data path/to/training_set.h5 \
+  --test-data path/to/test_set.h5 \
+  --checkpoint-dir path/to/checkpoints/
+
+# 3. Optimize per-class decision thresholds and generate final predictions
+python src/threshold_optimization.py \
+  --checkpoint-dir path/to/checkpoints/ \
+  --output-path path/to/final_predictions.npy
 ```
 
 > Paths in the original development notebook pointed to Google Drive (Colab environment). The modularized scripts in `src/` accept paths as command-line arguments instead.
+
+### Pipeline artifacts
+
+| Stage | Script | Key outputs (in `--checkpoint-dir`) |
+|---|---|---|
+| Training | `train.py` | `best_model_fold_{i}.keras`, `history_fold_{i}.json`, `resume_weights_fold_{i}.weights.h5` |
+| Evaluation & fine-tuning | `evaluate.py` | `best_model_fold_{i}_finetuned.keras`, `history_fold_{i}_finetuned.json`, `training_curves.png`, `performance_dashboard.png`, `oof_prob_matrix.npy`, `oof_true_labels.npy`, `ensemble_test_probs.npy` |
+| Threshold optimization | `threshold_optimization.py` | `final_predictions.npy` |
 
 ## Methodology Summary
 
@@ -114,6 +134,7 @@ If you use this work, please cite the associated manuscript (citation details to
 4. Kolhar, M., Kazi, R. N. A., Mohapatra, H., & Rajeh, A. M. A. (2024). AI-driven real-time classification of ECG signals for cardiac monitoring using i-AlexNet architecture. *Diagnostics*, 14(13), 1344.
 5. Fajardo, C. A., Parra, A. S., & Castellanos-Parada, T. V. (2025). Lightweight deep learning for atrial fibrillation detection: Efficient models for wearable devices. *Ingeniería e Investigación*, 45(1), e114530.
 6. Zou, Q., Xie, S., Lin, Z., Wu, M., & Ju, Y. (2016). Finding the best classification threshold in imbalanced classification. *Big Data Research*, 5, 2–8.
+7. Naaz, Mohebba & Kumari, L. & Padma Sai, Y.. (2022). A new transfer learning approach to detect cardiac arrhythmia from ECG signals. Signal, Image and Video Processing. 16. 10.1007/s11760-022-02155-w. 
 
 ## License
 
