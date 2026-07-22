@@ -305,11 +305,11 @@ def plot_training_curves(checkpoint_dir, n_folds, suffix="", title="Training Cur
     print(f"Curves saved → {save_path}")
 
 
-def plot_performance_dashboard(checkpoint_dir, fold_f1_scores, fold_class_f1s, global_conf_mat, global_macro_f1):
+def plot_performance_dashboard(checkpoint_dir, fold_f1_scores, fold_class_f1s, fold_conf_matrices, global_conf_mat, global_macro_f1):
     """
-    Renders a 2-row performance dashboard: F1 macro / per-class F1 per
-    fold, the global OOF confusion matrix, and per-fold normalised
-    confusion matrices.
+    Renders a performance dashboard: F1 macro / per-class F1 per fold,
+    the global OOF confusion matrix, and one normalised confusion matrix
+    per fold.
     """
     n_folds = len(fold_f1_scores)
     fold_labels = [f"Fold {i + 1}" for i in range(n_folds)]
@@ -360,10 +360,19 @@ def plot_performance_dashboard(checkpoint_dir, fold_f1_scores, fold_class_f1s, g
     for col in range(3, n_cols):
         axes[0, col].axis("off")
 
-    # Remaining panels are unused in this simplified dashboard (kept for layout symmetry)
-    for row in range(1, n_rows):
-        for col in range(n_cols):
-            axes[row, col].axis("off")
+    # Panels: one normalised confusion matrix per fold, starting at row 1
+    remaining_axes = [axes[row, col] for row in range(1, n_rows) for col in range(n_cols)]
+    for fold_idx, conf_mat in enumerate(fold_conf_matrices):
+        ax = remaining_axes[fold_idx]
+        conf_mat_norm = conf_mat.astype(np.float64) / conf_mat.sum(axis=1, keepdims=True)
+        ConfusionMatrixDisplay(conf_mat_norm, display_labels=CLASS_NAMES).plot(
+            ax=ax, colorbar=False, cmap="Blues", values_format=".2f"
+        )
+        ax.set_title(f"Fold {fold_idx + 1} — Confusion Matrix (normalised)")
+
+    # Hide any leftover unused panels
+    for ax in remaining_axes[len(fold_conf_matrices):]:
+        ax.axis("off")
 
     plt.tight_layout()
     dashboard_path = os.path.join(checkpoint_dir, "performance_dashboard.png")
@@ -437,7 +446,7 @@ def main():
     print(f"\nSaved oof_prob_matrix.npy, oof_true_labels.npy, ensemble_test_probs.npy → {args.checkpoint_dir}")
 
     # ── Step 5: diagnostic dashboard ───────────────────────────────────────
-    plot_performance_dashboard(args.checkpoint_dir, fold_f1_scores, fold_class_f1s, global_conf_mat, global_macro_f1)
+    plot_performance_dashboard(args.checkpoint_dir, fold_f1_scores, fold_class_f1s, fold_conf_matrices, global_conf_mat, global_macro_f1)
 
     print("\nEvaluation complete. Run threshold_optimization.py next to obtain the final test predictions.")
 
