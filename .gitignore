@@ -11,6 +11,7 @@
 *.pkl
 data/
 checkpoints/
+checkpoints_test/
 checkpointssmg3gru_1/
 
 # Training artifacts
