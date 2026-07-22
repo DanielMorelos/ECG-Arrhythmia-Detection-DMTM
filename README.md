@@ -38,20 +38,20 @@ Results were obtained via stratified 5-fold cross-validation with out-of-fold (O
 
 ```
 Input (2049, 1)
- → Conv1D(32, k=7)  → BN → ReLU → MaxPool → Dropout(0.2)
- → Conv1D(64, k=5)  → BN → ReLU → MaxPool → Dropout(0.2)
- → Conv1D(128, k=3) → BN → ReLU → MaxPool → Dropout(0.2)
- → Conv1D(256, k=3) → BN → ReLU
- → Squeeze-and-Excitation block (reduction ratio = 8)
- → Bidirectional GRU(64)
- → Dense(128, ReLU) → Dropout(0.5)
- → Dense(3, Softmax)
+ -> Conv1D(32, k=7)  -> BN -> ReLU -> MaxPool -> Dropout(0.2)
+ -> Conv1D(64, k=5)  -> BN -> ReLU -> MaxPool -> Dropout(0.2)
+ -> Conv1D(128, k=3) -> BN -> ReLU -> MaxPool -> Dropout(0.2)
+ -> Conv1D(256, k=3) -> BN -> ReLU
+ -> Squeeze-and-Excitation block (reduction ratio = 8)
+ -> Bidirectional GRU(64)
+ -> Dense(128, ReLU) -> Dropout(0.5)
+ -> Dense(3, Softmax)
 ```
 
 ## Repository Structure
 
 ```
-ecg-arrhythmia-classifier/
+ECG-Arrhythmia-Detection-DMTM/
 ├── README.md
 ├── LICENSE
 ├── requirements.txt
@@ -76,7 +76,7 @@ ecg-arrhythmia-classifier/
 ## Installation
 
 ```bash
-git clone https://github.com/<your-username>/ecg-arrhythmia-classifier.git
+git clone https://github.com/DanielMorelos/ecg-arrhythmia-classifier.git
 cd ecg-arrhythmia-classifier
 pip install -r requirements.txt
 ```
