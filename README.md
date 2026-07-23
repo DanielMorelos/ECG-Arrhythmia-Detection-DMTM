@@ -4,7 +4,7 @@ A compact, attention-based deep learning model for automatic classification of s
 
 ## Overview
 
-Atrial fibrillation (AF) is one of the most prevalent cardiac arrhythmias and a major risk factor for stroke, heart failure, and mortality. This project presents **ECGNet-SE-BiGRU**, a lightweight hybrid architecture combining:
+Atrial fibrillation (AF) is one of the most prevalent cardiac arrhythmias and a major risk factor for stroke, heart failure, and mortality. This project implements a lightweight hybrid architecture combining:
 
 - **1D Convolutional layers** for hierarchical morphological feature extraction
 - **Squeeze-and-Excitation (SE) attention** for channel-wise feature recalibration
