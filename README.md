@@ -135,7 +135,14 @@ If you use this work, please cite the associated manuscript (citation details to
 5. Fajardo, C. A., Parra, A. S., & Castellanos-Parada, T. V. (2025). Lightweight deep learning for atrial fibrillation detection: Efficient models for wearable devices. *Ingeniería e Investigación*, 45(1), e114530.
 6. Zou, Q., Xie, S., Lin, Z., Wu, M., & Ju, Y. (2016). Finding the best classification threshold in imbalanced classification. *Big Data Research*, 5, 2–8.
 7. Naaz, Mohebba & Kumari, L. & Padma Sai, Y.. (2022). A new transfer learning approach to detect cardiac arrhythmia from ECG signals. Signal, Image and Video Processing. 16. 10.1007/s11760-022-02155-w. 
-
+8. Tan, S., Ortiz-Gagné, S., Beaudoin-Gagnon, N., Fecteau, P., Courville, A., Bengio, Y., & Cohen, J. P. (2022). Icentia11k Single Lead Continuous Raw Electrocardiogram Dataset (version 1.0). *PhysioNet*. RRID:SCR_007345. https://doi.org/10.13026/kk0v-r952
+9. Romdhane, T., Alhichri, H., Ouni, R., & Atri, M. (2020). Electrocardiogram heartbeat classification based on a deep convolutional neural network and focal loss. *Computers in Biology and Medicine*, 123, 103866.
+10. Gupta, S., Panwar, N., & Roy, P. P. (2026). HeartBeatAI: An interpretable and robust deep learning framework for multi-label ECG arrhythmia detection. arXiv:2605.24588.
+11. Kolhar, M., Kazi, R. N. A., Mohapatra, H., & Rajeh, A. M. A. (2024). AI-driven real-time classification of ECG signals for cardiac monitoring using i-AlexNet architecture. *Diagnostics*, 14(13), 1344.
+12. Hu, J., Shen, L., & Sun, G. (2018). Squeeze-and-excitation networks. In *Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)* (pp. 7132–7141).
+13. Cho, K., van Merriënboer, B., Gulcehre, C., Bahdanau, D., Bougares, F., Schwenk, H., & Bengio, Y. (2014). Learning phrase representations using RNN encoder–decoder for statistical machine translation. In *Proceedings of the 2014 Conference on Empirical Methods in Natural Language Processing (EMNLP)* (pp. 1724–1734).
+14. Lin, T.-Y., Goyal, P., Girshick, R., He, K., & Dollár, P. (2017). Focal loss for dense object detection. In *Proceedings of the IEEE International Conference on Computer Vision (ICCV)* (pp. 2980–2988).
+15. Szegedy, C., Vanhoucke, V., Ioffe, S., Shlens, J., & Wojna, Z. (2016). Rethinking the inception architecture for computer vision. In *Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)* (pp. 2818–2826).
 ## License
 
 This project is licensed under the MIT License — see [LICENSE](LICENSE) for details.
