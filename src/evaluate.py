@@ -44,6 +44,7 @@ from sklearn.metrics import (
     ConfusionMatrixDisplay,
 )
 from sklearn.model_selection import StratifiedKFold
+from imblearn.over_sampling import RandomOverSampler
 
 from data_preprocessing import load_train_data, load_test_data, prepare_datasets
 from losses import focal_loss
@@ -65,6 +66,7 @@ def parse_args():
     parser.add_argument("--random-state", type=int, default=42, help="Random state for StratifiedKFold (must match train.py).")
     parser.add_argument("--finetune-epochs", type=int, default=15, help="Maximum fine-tuning epochs per fold.")
     parser.add_argument("--finetune-lr", type=float, default=1e-5, help="Learning rate for fine-tuning.")
+    parser.add_argument("--weight-decay", type=float, default=0.01, help="Weight decay for AdamW during fine-tuning.")
     parser.add_argument("--finetune-patience", type=int, default=5, help="EarlyStopping patience during fine-tuning.")
     parser.add_argument("--unfrozen-layers", type=int, default=3, help="Number of trailing layers left trainable during fine-tuning.")
     parser.add_argument("--skip-finetune", action="store_true", help="Skip fine-tuning and evaluate base checkpoints only.")
@@ -173,6 +175,10 @@ def fine_tune_folds(checkpoint_dir, skf, X_train_3d, y_train_onehot, y_train, ar
     """
     Fine-tunes the last `args.unfrozen_layers` layers of each fold's best
     checkpoint for `args.finetune_epochs` epochs at a reduced learning rate.
+
+    The training fold is class-balanced with RandomOverSampler before
+    fitting, mirroring train.py so both training stages see the same
+    oversampled distribution. The validation fold is left untouched.
     """
     for fold_idx, (train_indices, val_indices) in enumerate(skf.split(X_train_3d, y_train)):
         base_ckpt = os.path.join(checkpoint_dir, f"best_model_fold_{fold_idx + 1}.keras")
@@ -193,7 +199,7 @@ def fine_tune_folds(checkpoint_dir, skf, X_train_3d, y_train_onehot, y_train, ar
             layer.trainable = False
 
         pretrained_model.compile(
-            optimizer=tf.keras.optimizers.AdamW(learning_rate=args.finetune_lr, weight_decay=0.01),
+            optimizer=tf.keras.optimizers.AdamW(learning_rate=args.finetune_lr, weight_decay=args.weight_decay),
             loss=focal_loss(gamma=args.focal_gamma, alpha=args.focal_alpha, label_smoothing=args.label_smoothing),
             metrics=["accuracy"],
         )
@@ -203,8 +209,18 @@ def fine_tune_folds(checkpoint_dir, skf, X_train_3d, y_train_onehot, y_train, ar
         X_fold_val = X_train_3d[val_indices]
         y_fold_val = y_train_onehot[val_indices]
 
+        # ── Class-balance oversampling (same recipe as train.py) ────────────
+        oversampler = RandomOverSampler(random_state=args.random_state)
+        X_flat = X_fold_train.reshape(X_fold_train.shape[0], -1)
+        X_resampled, y_resampled_int = oversampler.fit_resample(
+            X_flat, np.argmax(y_fold_train, axis=-1)
+        )
+        input_length = X_train_3d.shape[1]
+        X_resampled = X_resampled.reshape(-1, input_length, 1)
+        y_resampled = tf.keras.utils.to_categorical(y_resampled_int, num_classes=y_train_onehot.shape[-1])
+
         pretrained_model.fit(
-            X_fold_train, y_fold_train,
+            X_resampled, y_resampled,
             validation_data=(X_fold_val, y_fold_val),
             epochs=args.finetune_epochs,
             batch_size=args.batch_size,
