@@ -38,6 +38,7 @@ def parse_args():
     parser.add_argument("--n-folds", type=int, default=5, help="Number of stratified CV folds.")
     parser.add_argument("--batch-size", type=int, default=32, help="Training batch size.")
     parser.add_argument("--learning-rate", type=float, default=0.001, help="Initial learning rate (AdamW).")
+    parser.add_argument("--weight-decay", type=float, default=0.01, help="Weight decay for AdamW.")
     parser.add_argument("--max-epochs", type=int, default=40, help="Maximum training epochs per fold.")
     parser.add_argument("--lr-patience", type=int, default=3, help="Patience for ReduceLROnPlateau.")
     parser.add_argument("--early-stop-patience", type=int, default=50, help="Patience for EarlyStopping.")
@@ -86,7 +87,7 @@ def main():
 
         # ── Build and compile model ───────────────────────────────────────
         model = build_ecg_classifier(input_shape=INPUT_SHAPE, num_classes=NUM_CLASSES)
-        optimizer = tf.keras.optimizers.AdamW(learning_rate=LEARNING_RATE, weight_decay=0.01)
+        optimizer = tf.keras.optimizers.AdamW(learning_rate=LEARNING_RATE, weight_decay=args.weight_decay)
         model.compile(
             optimizer=optimizer,
             loss=focal_loss(),
@@ -147,9 +148,9 @@ def main():
         X_resampled = X_resampled.reshape(-1, INPUT_SHAPE[0], 1)
         y_resampled = tf.keras.utils.to_categorical(y_resampled_int, num_classes=NUM_CLASSES)
 
-        # ── Fit ──────────────────────────────────────────────────────────────
+        # ── Fit (on the oversampled training fold; validation stays untouched) ─
         model.fit(
-            X_fold_train, y_fold_train,
+            X_resampled, y_resampled,
             validation_data=(X_fold_val, y_fold_val),
             epochs=MAX_EPOCHS,
             initial_epoch=start_epoch,
