@@ -11,12 +11,16 @@ Pipeline
 2. Fine-tune the last N layers of each fold's best checkpoint.
 3. Re-evaluate the ensemble (fine-tuned checkpoint when available, base
    checkpoint otherwise) to build:
-       - oof_prob_matrix.npy      (N_train, num_classes)
-       - oof_true_labels.npy      (N_train,)
-       - ensemble_test_probs.npy  (n_folds, N_test, num_classes)
-   These three files are the required inputs of threshold_optimization.py.
-4. Render training-curve and performance-dashboard figures to
-   checkpoint_dir for visual inspection.
+       - oof_prob_matrix.npy        (N_train, num_classes)
+       - oof_true_labels.npy        (N_train,)
+       - ensemble_test_probs.npy    (n_folds, N_test, num_classes)
+       - fold_f1_scores.npy         (n_folds,)
+       - fold_class_f1_scores.npy   (n_folds, num_classes)
+       - global_confusion_matrix.npy(num_classes, num_classes)
+   The first three are the required inputs of threshold_optimization.py;
+   the last three are consumed by its composite dashboard summary.
+4. Render training-curve and performance-dashboard figures (PNG + PDF,
+   row-normalized confusion matrices) to checkpoint_dir for inspection.
 
 Usage
 -----
@@ -45,8 +49,6 @@ from data_preprocessing import load_train_data, load_test_data, prepare_datasets
 from losses import focal_loss
 from callbacks import F1MacroCallback, HistoryPersistenceCallback
 
-CLASS_NAMES = ["Normal", "Arrhythmia", "Noise"]
-
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -57,6 +59,7 @@ def parse_args():
     parser.add_argument("--checkpoint-dir", type=str, required=True, help="Directory containing fold checkpoints from train.py.")
     parser.add_argument("--input-length", type=int, default=2049, help="ECG segment length (time steps).")
     parser.add_argument("--num-classes", type=int, default=3, help="Number of target classes.")
+    parser.add_argument("--class-names", type=str, default="Normal,Arrhythmia,Noise", help="Comma-separated class display names, in label order.")
     parser.add_argument("--n-folds", type=int, default=5, help="Number of stratified CV folds (must match train.py).")
     parser.add_argument("--batch-size", type=int, default=32, help="Inference / fine-tuning batch size.")
     parser.add_argument("--random-state", type=int, default=42, help="Random state for StratifiedKFold (must match train.py).")
@@ -65,10 +68,61 @@ def parse_args():
     parser.add_argument("--finetune-patience", type=int, default=5, help="EarlyStopping patience during fine-tuning.")
     parser.add_argument("--unfrozen-layers", type=int, default=3, help="Number of trailing layers left trainable during fine-tuning.")
     parser.add_argument("--skip-finetune", action="store_true", help="Skip fine-tuning and evaluate base checkpoints only.")
+    parser.add_argument("--focal-gamma", type=float, default=3.0, help="Focal loss focusing exponent (must match train.py).")
+    parser.add_argument("--focal-alpha", type=float, default=1.0, help="Focal loss scaling factor (must match train.py).")
+    parser.add_argument("--label-smoothing", type=float, default=0.05, help="Focal loss label smoothing (must match train.py).")
+    parser.add_argument("--digits", type=int, default=4, help="Decimal precision used in reports, plots, and confusion-matrix cell labels.")
+    parser.add_argument("--dpi", type=int, default=400, help="Resolution (DPI) used when saving PNG/PDF figures.")
     return parser.parse_args()
 
 
-def reload_and_evaluate_folds(checkpoint_dir, skf, X_train_3d, X_test_3d, y_train, gamma, batch_size):
+# ─────────────────────────────────────────────────────────────────────────────
+# CONFUSION-MATRIX UTILITIES
+# ─────────────────────────────────────────────────────────────────────────────
+def normalize_confusion_matrix(conf_matrix: np.ndarray) -> np.ndarray:
+    """Row-normalises a confusion matrix so each row sums to 1.0, i.e.
+    per-true-class recall proportions (no percentage scaling)."""
+    conf_matrix = conf_matrix.astype(float)
+    row_sums = conf_matrix.sum(axis=1, keepdims=True)
+    return np.divide(
+        conf_matrix, row_sums,
+        out=np.zeros_like(conf_matrix),
+        where=row_sums != 0,
+    )
+
+
+def plot_confusion_matrix_ratio(
+    conf_matrix: np.ndarray,
+    display_labels: list,
+    ax: plt.Axes,
+    title: str,
+    cmap: str = "Blues",
+    already_normalized: bool = False,
+    colorbar: bool = False,
+    digits: int = 4,
+) -> ConfusionMatrixDisplay:
+    """Plots a confusion matrix as row-normalised ratios formatted to
+    `digits` decimal places, matching the standard reporting style used
+    across every figure in this pipeline."""
+    matrix_to_plot = conf_matrix if already_normalized else normalize_confusion_matrix(conf_matrix)
+    disp = ConfusionMatrixDisplay(matrix_to_plot, display_labels=display_labels)
+    disp.plot(ax=ax, colorbar=colorbar, cmap=cmap, values_format=f".{digits}f")
+    ax.set_title(title)
+    return disp
+
+
+def save_figure(fig: plt.Figure, base_path: str, dpi: int) -> None:
+    """Saves `fig` as both PNG and PDF at the given DPI. `base_path` may
+    carry either extension; both variants are written alongside it."""
+    root, _ext = os.path.splitext(base_path)
+    fig.savefig(f"{root}.png", dpi=dpi, bbox_inches="tight")
+    fig.savefig(f"{root}.pdf", dpi=dpi, bbox_inches="tight")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STEP 1 — RELOAD BASE CHECKPOINTS
+# ─────────────────────────────────────────────────────────────────────────────
+def reload_and_evaluate_folds(checkpoint_dir, skf, X_train_3d, y_train, class_names, gamma, alpha, label_smoothing, batch_size, digits):
     """
     Reloads each fold's best base checkpoint and reports held-out metrics.
 
@@ -88,7 +142,7 @@ def reload_and_evaluate_folds(checkpoint_dir, skf, X_train_3d, X_test_3d, y_trai
 
         eval_model = tf.keras.models.load_model(
             checkpoint_path,
-            custom_objects={"focal_loss_fixed": focal_loss(gamma=gamma)},
+            custom_objects={"focal_loss_fixed": focal_loss(gamma=gamma, alpha=alpha, label_smoothing=label_smoothing)},
         )
 
         X_fold_val = X_train_3d[val_indices]
@@ -106,12 +160,15 @@ def reload_and_evaluate_folds(checkpoint_dir, skf, X_train_3d, X_test_3d, y_trai
         print(f"\n{'='*50}")
         print(f"  Fold {fold_idx + 1} — Validation Results")
         print(f"{'='*50}")
-        print(f"  F1 Macro : {macro_f1:.4f}")
-        print(classification_report(y_fold_val_true, val_preds, target_names=CLASS_NAMES))
+        print(f"  F1 Macro : {macro_f1:.{digits}f}")
+        print(classification_report(y_fold_val_true, val_preds, target_names=class_names, digits=digits))
 
     return fold_macro_f1_scores, fold_per_class_f1
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# STEP 2 — FINE-TUNE
+# ─────────────────────────────────────────────────────────────────────────────
 def fine_tune_folds(checkpoint_dir, skf, X_train_3d, y_train_onehot, y_train, args):
     """
     Fine-tunes the last `args.unfrozen_layers` layers of each fold's best
@@ -128,7 +185,7 @@ def fine_tune_folds(checkpoint_dir, skf, X_train_3d, y_train_onehot, y_train, ar
 
         pretrained_model = tf.keras.models.load_model(
             base_ckpt,
-            custom_objects={"focal_loss_fixed": focal_loss()},
+            custom_objects={"focal_loss_fixed": focal_loss(gamma=args.focal_gamma, alpha=args.focal_alpha, label_smoothing=args.label_smoothing)},
         )
 
         # Freeze every layer except the trailing `unfrozen_layers`.
@@ -137,7 +194,7 @@ def fine_tune_folds(checkpoint_dir, skf, X_train_3d, y_train_onehot, y_train, ar
 
         pretrained_model.compile(
             optimizer=tf.keras.optimizers.AdamW(learning_rate=args.finetune_lr, weight_decay=0.01),
-            loss=focal_loss(),
+            loss=focal_loss(gamma=args.focal_gamma, alpha=args.focal_alpha, label_smoothing=args.label_smoothing),
             metrics=["accuracy"],
         )
 
@@ -166,7 +223,10 @@ def fine_tune_folds(checkpoint_dir, skf, X_train_3d, y_train_onehot, y_train, ar
         print(f"  Fold {fold_idx + 1} fine-tuned model saved: {finetuned_ckpt}")
 
 
-def build_oof_ensemble(checkpoint_dir, skf, X_train_3d, X_test_3d, y_train, num_classes, batch_size):
+# ─────────────────────────────────────────────────────────────────────────────
+# STEP 3 — OOF ENSEMBLE
+# ─────────────────────────────────────────────────────────────────────────────
+def build_oof_ensemble(checkpoint_dir, skf, X_train_3d, X_test_3d, y_train, class_names, num_classes, gamma, alpha, label_smoothing, batch_size, digits):
     """
     Reloads the fine-tuned checkpoint for each fold (falling back to the
     base checkpoint if fine-tuning was skipped or failed), and assembles
@@ -200,7 +260,7 @@ def build_oof_ensemble(checkpoint_dir, skf, X_train_3d, X_test_3d, y_train, num_
 
         model = tf.keras.models.load_model(
             checkpoint_to_load,
-            custom_objects={"focal_loss_fixed": focal_loss()},
+            custom_objects={"focal_loss_fixed": focal_loss(gamma=gamma, alpha=alpha, label_smoothing=label_smoothing)},
         )
 
         X_fold_val = X_train_3d[val_indices]
@@ -220,8 +280,8 @@ def build_oof_ensemble(checkpoint_dir, skf, X_train_3d, X_test_3d, y_train, num_
         fold_class_f1s.append(class_f1s)
         fold_conf_matrices.append(conf_matrix)
 
-        print(f"\n  Fold {fold_idx + 1} — F1 Macro: {macro_f1:.4f}")
-        print(classification_report(y_fold_val_true, fold_val_preds, target_names=CLASS_NAMES))
+        print(f"\n  Fold {fold_idx + 1} — F1 Macro: {macro_f1:.{digits}f}")
+        print(classification_report(y_fold_val_true, fold_val_preds, target_names=class_names, digits=digits))
 
         ensemble_test_probs.append(model.predict(X_test_3d, batch_size=batch_size, verbose=0))
 
@@ -235,10 +295,14 @@ def build_oof_ensemble(checkpoint_dir, skf, X_train_3d, X_test_3d, y_train, num_
     )
 
 
-def plot_training_curves(checkpoint_dir, n_folds, suffix="", title="Training Curves per Fold — Loss · Accuracy · F1 Macro"):
+# ─────────────────────────────────────────────────────────────────────────────
+# STEP 4 — DIAGNOSTIC FIGURES
+# ─────────────────────────────────────────────────────────────────────────────
+def plot_training_curves(checkpoint_dir, n_folds, output_path, dpi, suffix="", title="Training Curves per Fold — Loss · Accuracy · F1 Macro"):
     """
     Loads the persisted JSON history for every fold and renders a
     3-row x n_folds grid of Loss / Accuracy / F1-Macro curves.
+    Saved as PNG + PDF at `dpi` to `output_path`.
 
     Parameters
     ----------
@@ -298,18 +362,16 @@ def plot_training_curves(checkpoint_dir, n_folds, suffix="", title="Training Cur
         ax.grid(alpha=0.3)
 
     plt.tight_layout()
-    filename = "training_curves.png" if suffix == "" else "finetuning_curves.png"
-    save_path = os.path.join(checkpoint_dir, filename)
-    plt.savefig(save_path, dpi=150, bbox_inches="tight")
+    save_figure(fig, output_path, dpi)
     plt.close(fig)
-    print(f"Curves saved → {save_path}")
+    print(f"Curves saved → {output_path}")
 
 
-def plot_performance_dashboard(checkpoint_dir, fold_f1_scores, fold_class_f1s, fold_conf_matrices, global_conf_mat, global_macro_f1):
+def plot_performance_dashboard(output_path, class_names, fold_f1_scores, fold_class_f1s, fold_conf_matrices, global_conf_mat, global_macro_f1, digits, dpi):
     """
     Renders a performance dashboard: F1 macro / per-class F1 per fold,
-    the global OOF confusion matrix, and one normalised confusion matrix
-    per fold.
+    the row-normalised global OOF confusion matrix, and one row-normalised
+    confusion matrix per fold. Saved as PNG + PDF at `dpi`.
     """
     n_folds = len(fold_f1_scores)
     fold_labels = [f"Fold {i + 1}" for i in range(n_folds)]
@@ -328,10 +390,10 @@ def plot_performance_dashboard(checkpoint_dir, fold_f1_scores, fold_class_f1s, f
     # Panel: F1 Macro per fold
     ax = axes[0, 0]
     bars = ax.bar(fold_labels, fold_f1_scores, color="#2c3e50", alpha=0.7)
-    ax.axhline(np.mean(fold_f1_scores), color="#e74c3c", linestyle="--", label=f"Mean ({np.mean(fold_f1_scores):.4f})")
-    ax.axhline(global_macro_f1, color="#27ae60", linestyle=":", label=f"Global OOF ({global_macro_f1:.4f})")
+    ax.axhline(np.mean(fold_f1_scores), color="#e74c3c", linestyle="--", label=f"Mean ({np.mean(fold_f1_scores):.{digits}f})")
+    ax.axhline(global_macro_f1, color="#27ae60", linestyle=":", label=f"Global OOF ({global_macro_f1:.{digits}f})")
     for bar, val in zip(bars, fold_f1_scores):
-        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.005, f"{val:.3f}", ha="center", fontsize=9)
+        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.005, f"{val:.{digits}f}", ha="center", fontsize=9)
     ax.set_title("F1 Macro per Fold")
     ax.set_ylim([0.0, 1.0])
     ax.legend(fontsize=8)
@@ -341,9 +403,10 @@ def plot_performance_dashboard(checkpoint_dir, fold_f1_scores, fold_class_f1s, f
     ax = axes[0, 1]
     x_pos = np.arange(n_folds)
     bar_width = 0.25
-    ax.bar(x_pos - bar_width, fold_class_f1_arr[:, 0], bar_width, label="Normal", color="#2ecc71", alpha=0.8)
-    ax.bar(x_pos, fold_class_f1_arr[:, 1], bar_width, label="Arrhythmia", color="#e67e22", alpha=0.8)
-    ax.bar(x_pos + bar_width, fold_class_f1_arr[:, 2], bar_width, label="Noise", color="#3498db", alpha=0.8)
+    bar_colors = ["#2ecc71", "#e67e22", "#3498db"]
+    for class_idx, class_name in enumerate(class_names):
+        offset = (class_idx - (len(class_names) - 1) / 2) * bar_width
+        ax.bar(x_pos + offset, fold_class_f1_arr[:, class_idx], bar_width, label=class_name, color=bar_colors[class_idx % len(bar_colors)], alpha=0.8)
     ax.set_title("Per-Class F1 Score per Fold")
     ax.set_xticks(x_pos)
     ax.set_xticklabels(fold_labels)
@@ -351,38 +414,51 @@ def plot_performance_dashboard(checkpoint_dir, fold_f1_scores, fold_class_f1s, f
     ax.legend(fontsize=8)
     ax.grid(alpha=0.3)
 
-    # Panel: Global OOF confusion matrix
-    ax = axes[0, 2]
-    ConfusionMatrixDisplay(global_conf_mat, display_labels=CLASS_NAMES).plot(ax=ax, colorbar=False, cmap="Blues")
-    ax.set_title("Global OOF Confusion Matrix")
+    # Panel: Global OOF confusion matrix (row-normalised)
+    plot_confusion_matrix_ratio(
+        global_conf_mat, class_names, axes[0, 2],
+        title=f"Global OOF Confusion Matrix\nF1 Macro = {global_macro_f1:.{digits}f}",
+        digits=digits,
+    )
 
     # Hide any unused cells in row 0 beyond column 2
     for col in range(3, n_cols):
         axes[0, col].axis("off")
 
-    # Panels: one normalised confusion matrix per fold, starting at row 1
+    # Panels: one row-normalised confusion matrix per fold, starting at row 1
     remaining_axes = [axes[row, col] for row in range(1, n_rows) for col in range(n_cols)]
     for fold_idx, conf_mat in enumerate(fold_conf_matrices):
         ax = remaining_axes[fold_idx]
-        conf_mat_norm = conf_mat.astype(np.float64) / conf_mat.sum(axis=1, keepdims=True)
-        ConfusionMatrixDisplay(conf_mat_norm, display_labels=CLASS_NAMES).plot(
-            ax=ax, colorbar=False, cmap="Blues", values_format=".2f"
+        plot_confusion_matrix_ratio(
+            conf_mat, class_names, ax,
+            title=f"Fold {fold_idx + 1} — Confusion Matrix (normalised)",
+            digits=digits,
         )
-        ax.set_title(f"Fold {fold_idx + 1} — Confusion Matrix (normalised)")
 
     # Hide any leftover unused panels
     for ax in remaining_axes[len(fold_conf_matrices):]:
         ax.axis("off")
 
     plt.tight_layout()
-    dashboard_path = os.path.join(checkpoint_dir, "performance_dashboard.png")
-    plt.savefig(dashboard_path, dpi=150, bbox_inches="tight")
+    save_figure(fig, output_path, dpi)
     plt.close(fig)
-    print(f"Dashboard saved: {dashboard_path}")
+    print(f"Dashboard saved: {output_path}")
 
 
 def main():
     args = parse_args()
+    class_names = [name.strip() for name in args.class_names.split(",")]
+
+    # ── Output paths (declared up front; per-fold paths stay inside loops) ──
+    training_curves_path = os.path.join(args.checkpoint_dir, "training_curves.png")
+    finetuning_curves_path = os.path.join(args.checkpoint_dir, "finetuning_curves.png")
+    dashboard_path = os.path.join(args.checkpoint_dir, "performance_dashboard.png")
+    oof_prob_path = os.path.join(args.checkpoint_dir, "oof_prob_matrix.npy")
+    oof_labels_path = os.path.join(args.checkpoint_dir, "oof_true_labels.npy")
+    ensemble_test_probs_path = os.path.join(args.checkpoint_dir, "ensemble_test_probs.npy")
+    fold_f1_path = os.path.join(args.checkpoint_dir, "fold_f1_scores.npy")
+    fold_class_f1_path = os.path.join(args.checkpoint_dir, "fold_class_f1_scores.npy")
+    global_conf_mat_path = os.path.join(args.checkpoint_dir, "global_confusion_matrix.npy")
 
     # ── Data loading & preprocessing ───────────────────────────────────────
     print("Loading data from HDF5 files …")
@@ -399,17 +475,19 @@ def main():
     # ── Step 1: reload base checkpoints and report held-out metrics ───────
     print("\nReloading best checkpoints for evaluation …")
     reload_and_evaluate_folds(
-        args.checkpoint_dir, skf, X_train_3d, X_test_3d, y_train,
-        gamma=3.0, batch_size=args.batch_size,
+        args.checkpoint_dir, skf, X_train_3d, y_train, class_names,
+        gamma=args.focal_gamma, alpha=args.focal_alpha, label_smoothing=args.label_smoothing,
+        batch_size=args.batch_size, digits=args.digits,
     )
-    plot_training_curves(args.checkpoint_dir, args.n_folds, suffix="")
+    plot_training_curves(args.checkpoint_dir, args.n_folds, training_curves_path, dpi=args.dpi)
 
     # ── Step 2: fine-tune the classification head of each fold ────────────
     if not args.skip_finetune:
-        print("\nFine-tuning best models (last {} layers unfrozen) …".format(args.unfrozen_layers))
+        print(f"\nFine-tuning best models (last {args.unfrozen_layers} layers unfrozen) …")
         fine_tune_folds(args.checkpoint_dir, skf, X_train_3d, y_train_onehot, y_train, args)
         plot_training_curves(
-            args.checkpoint_dir, args.n_folds, suffix="_finetuned",
+            args.checkpoint_dir, args.n_folds, finetuning_curves_path, dpi=args.dpi,
+            suffix="_finetuned",
             title="Fine-Tuning Curves per Fold — Loss · Accuracy · F1 Macro",
         )
     else:
@@ -425,8 +503,9 @@ def main():
         fold_class_f1s,
         fold_conf_matrices,
     ) = build_oof_ensemble(
-        args.checkpoint_dir, skf, X_train_3d, X_test_3d, y_train,
-        num_classes=args.num_classes, batch_size=args.batch_size,
+        args.checkpoint_dir, skf, X_train_3d, X_test_3d, y_train, class_names,
+        num_classes=args.num_classes, gamma=args.focal_gamma, alpha=args.focal_alpha,
+        label_smoothing=args.label_smoothing, batch_size=args.batch_size, digits=args.digits,
     )
 
     oof_predictions = np.argmax(oof_prob_matrix, axis=-1)
@@ -436,17 +515,25 @@ def main():
     print(f"\n{'='*60}")
     print("GLOBAL OOF METRICS")
     print(f"{'='*60}")
-    print(f"  F1 Macro (global): {global_macro_f1:.4f}")
-    print(classification_report(oof_true_labels, oof_predictions, target_names=CLASS_NAMES))
+    print(f"  F1 Macro (global): {global_macro_f1:.{args.digits}f}")
+    print(classification_report(oof_true_labels, oof_predictions, target_names=class_names, digits=args.digits))
 
-    # ── Step 4: persist ensemble artifacts for threshold_optimization.py ───
-    np.save(os.path.join(args.checkpoint_dir, "oof_prob_matrix.npy"), oof_prob_matrix)
-    np.save(os.path.join(args.checkpoint_dir, "oof_true_labels.npy"), oof_true_labels)
-    np.save(os.path.join(args.checkpoint_dir, "ensemble_test_probs.npy"), ensemble_test_probs)
-    print(f"\nSaved oof_prob_matrix.npy, oof_true_labels.npy, ensemble_test_probs.npy → {args.checkpoint_dir}")
+    # ── Step 4: persist ensemble + fold-level artifacts ────────────────────
+    # oof_prob_matrix / oof_true_labels / ensemble_test_probs feed threshold_optimization.py.
+    # fold_f1_scores / fold_class_f1_scores / global_confusion_matrix feed its composite dashboard.
+    np.save(oof_prob_path, oof_prob_matrix)
+    np.save(oof_labels_path, oof_true_labels)
+    np.save(ensemble_test_probs_path, ensemble_test_probs)
+    np.save(fold_f1_path, np.array(fold_f1_scores))
+    np.save(fold_class_f1_path, np.array(fold_class_f1s))
+    np.save(global_conf_mat_path, global_conf_mat)
+    print(f"\nSaved ensemble and fold-level metric artifacts → {args.checkpoint_dir}")
 
     # ── Step 5: diagnostic dashboard ───────────────────────────────────────
-    plot_performance_dashboard(args.checkpoint_dir, fold_f1_scores, fold_class_f1s, fold_conf_matrices, global_conf_mat, global_macro_f1)
+    plot_performance_dashboard(
+        dashboard_path, class_names, fold_f1_scores, fold_class_f1s, fold_conf_matrices,
+        global_conf_mat, global_macro_f1, digits=args.digits, dpi=args.dpi,
+    )
 
     print("\nEvaluation complete. Run threshold_optimization.py next to obtain the final test predictions.")
 
