@@ -26,11 +26,23 @@ The model contains approximately **293,000 trainable parameters**, offering a fa
 
 Results were obtained via stratified 5-fold cross-validation with out-of-fold (OOF) prediction aggregation, followed by evaluation on an independent, patient-level held-out test set (patients not seen during training or validation).
 
+## Result Figures
+
+| Figure | Description |
+|---|---|
+| ![Training curves](results/figures/training_curves.png) | Loss, accuracy and F1-macro curves per fold |
+| ![Performance dashboard](results/figures/performance_dashboard.png) | 5-fold CV performance dashboard |
+| ![Fine-tuning curves](results/figures/finetuning_curves.png) | Fine-tuning curves per fold |
+| ![Confusion matrix](results/figures/final_test_confusion_matrix.png) | Confusion matrix on external test set |
+| ![Composite summary](results/figures/composite_dashboard_summary.png) | Publication-ready summary figure |
+
+PDF versions of all figures are available in [`results/figures/`](results/figures/).
+
 ## Dataset
 
 - **Source**: [Icentia11k](https://physionet.org/content/icentia11k-continuous-ecg/1.0/) — one of the largest public single-lead ambulatory ECG databases (~11,000 patients), available via PhysioNet.
 - **Subset used**: 116,953 ECG segments (2,049 time steps each) derived from 500 patients, to emulate a realistic, data-constrained development scenario.
-- **Preprocessing**: per-sample Z-score normalization along the time axis; `RandomOverSampler` applied to the training partition of each fold to correct class imbalance (never applied to validation/test data, to avoid leakage).
+- **Preprocessing**: per-sample Z-score normalization along the time axis.
 
 > **Note**: Raw ECG data is not included in this repository due to size and licensing. See [PhysioNet's Icentia11k page](https://physionet.org/content/icentia11k-continuous-ecg/1.0/) for access instructions.
 
