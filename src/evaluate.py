@@ -44,7 +44,6 @@ from sklearn.metrics import (
     ConfusionMatrixDisplay,
 )
 from sklearn.model_selection import StratifiedKFold
-from imblearn.over_sampling import RandomOverSampler
 
 from data_preprocessing import load_train_data, load_test_data, prepare_datasets
 from losses import focal_loss
@@ -175,10 +174,6 @@ def fine_tune_folds(checkpoint_dir, skf, X_train_3d, y_train_onehot, y_train, ar
     """
     Fine-tunes the last `args.unfrozen_layers` layers of each fold's best
     checkpoint for `args.finetune_epochs` epochs at a reduced learning rate.
-
-    The training fold is class-balanced with RandomOverSampler before
-    fitting, mirroring train.py so both training stages see the same
-    oversampled distribution. The validation fold is left untouched.
     """
     for fold_idx, (train_indices, val_indices) in enumerate(skf.split(X_train_3d, y_train)):
         base_ckpt = os.path.join(checkpoint_dir, f"best_model_fold_{fold_idx + 1}.keras")
@@ -209,18 +204,8 @@ def fine_tune_folds(checkpoint_dir, skf, X_train_3d, y_train_onehot, y_train, ar
         X_fold_val = X_train_3d[val_indices]
         y_fold_val = y_train_onehot[val_indices]
 
-        # ── Class-balance oversampling (same recipe as train.py) ────────────
-        oversampler = RandomOverSampler(random_state=args.random_state)
-        X_flat = X_fold_train.reshape(X_fold_train.shape[0], -1)
-        X_resampled, y_resampled_int = oversampler.fit_resample(
-            X_flat, np.argmax(y_fold_train, axis=-1)
-        )
-        input_length = X_train_3d.shape[1]
-        X_resampled = X_resampled.reshape(-1, input_length, 1)
-        y_resampled = tf.keras.utils.to_categorical(y_resampled_int, num_classes=y_train_onehot.shape[-1])
-
         pretrained_model.fit(
-            X_resampled, y_resampled,
+            X_fold_train, y_fold_train,
             validation_data=(X_fold_val, y_fold_val),
             epochs=args.finetune_epochs,
             batch_size=args.batch_size,
