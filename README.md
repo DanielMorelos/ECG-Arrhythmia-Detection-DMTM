@@ -150,11 +150,17 @@ If you use this work, please cite the associated manuscript (citation details to
 8. Tan, S., Ortiz-Gagné, S., Beaudoin-Gagnon, N., Fecteau, P., Courville, A., Bengio, Y., & Cohen, J. P. (2022). Icentia11k Single Lead Continuous Raw Electrocardiogram Dataset (version 1.0). *PhysioNet*. RRID:SCR_007345. https://doi.org/10.13026/kk0v-r952
 9. Romdhane, T., Alhichri, H., Ouni, R., & Atri, M. (2020). Electrocardiogram heartbeat classification based on a deep convolutional neural network and focal loss. *Computers in Biology and Medicine*, 123, 103866.
 10. Gupta, S., Panwar, N., & Roy, P. P. (2026). HeartBeatAI: An interpretable and robust deep learning framework for multi-label ECG arrhythmia detection. arXiv:2605.24588.
-11. Kolhar, M., Kazi, R. N. A., Mohapatra, H., & Rajeh, A. M. A. (2024). AI-driven real-time classification of ECG signals for cardiac monitoring using i-AlexNet architecture. *Diagnostics*, 14(13), 1344.
-12. Hu, J., Shen, L., & Sun, G. (2018). Squeeze-and-excitation networks. In *Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)* (pp. 7132–7141).
-13. Cho, K., van Merriënboer, B., Gulcehre, C., Bahdanau, D., Bougares, F., Schwenk, H., & Bengio, Y. (2014). Learning phrase representations using RNN encoder–decoder for statistical machine translation. In *Proceedings of the 2014 Conference on Empirical Methods in Natural Language Processing (EMNLP)* (pp. 1724–1734).
-14. Lin, T.-Y., Goyal, P., Girshick, R., He, K., & Dollár, P. (2017). Focal loss for dense object detection. In *Proceedings of the IEEE International Conference on Computer Vision (ICCV)* (pp. 2980–2988).
-15. Szegedy, C., Vanhoucke, V., Ioffe, S., Shlens, J., & Wojna, Z. (2016). Rethinking the inception architecture for computer vision. In *Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)* (pp. 2818–2826).
+11. Hu, J., Shen, L., & Sun, G. (2018). Squeeze-and-excitation networks. In *Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)* (pp. 7132–7141).
+12. Cho, K., van Merriënboer, B., Gulcehre, C., Bahdanau, D., Bougares, F., Schwenk, H., & Bengio, Y. (2014). Learning phrase representations using RNN encoder–decoder for statistical machine translation. In *Proceedings of the 2014 Conference on Empirical Methods in Natural Language Processing (EMNLP)* (pp. 1724–1734).
+13. Lin, T.-Y., Goyal, P., Girshick, R., He, K., & Dollár, P. (2017). Focal loss for dense object detection. In *Proceedings of the IEEE International Conference on Computer Vision (ICCV)* (pp. 2980–2988).
+14. Szegedy, C., Vanhoucke, V., Ioffe, S., Shlens, J., & Wojna, Z. (2016). Rethinking the inception architecture for computer vision. In *Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)* (pp. 2818–2826).
+15. Islam, M. S., Hasan, K. F., Sultana, S., Uddin, S., Lió, P., Quinn, J. M. W., & Moni, M. A. (2023). HARDC: A novel ECG-based heartbeat classification method to detect arrhythmia using hierarchical attention based dual structured RNN with dilated CNN. *Neural Networks*, 162, 271–287.
+16. Hannun, A. Y., Rajpurkar, P., Haghpanahi, M., et al. (2019). Cardiologist-level arrhythmia detection and classification in ambulatory electrocardiograms using a deep neural network. *Nature Medicine*, 25(1), 65–69.
+17. Ribeiro, A. H., Ribeiro, M. H., Paixão, G. M. M., et al. (2020). Automatic diagnosis of the 12-lead ECG using a deep neural network. *Nature Communications*, 11(1), 1760.
+18. Strodthoff, N., Wagner, P., Schaeffter, T., & Samek, W. (2021). Deep learning for ECG analysis: Benchmarks and insights from PTB-XL. *IEEE Journal of Biomedical and Health Informatics*, 25(5), 1519–1528.
+19. Kachuee, M., Fazeli, S., & Sarrafzadeh, M. (2018). ECG heartbeat classification: A deep transferable representation. In *Proceedings of the IEEE Engineering in Medicine and Biology Society (EMBC)* (pp. 1705–1708).
+20. Wang, D., Zhang, Y., Zhao, Y., et al. (2022). An end-to-end deep learning network based on BiGRU for arrhythmia classification using ECG signals. *Biomedical Signal Processing and Control*, 72, 103285.
+21. Morelos, D., & Monsalve, T. (2026). ECG-Arrhythmia-Detection-DMTM. GitHub repository. Available: https://github.com/DanielMorelos/ECG-Arrhythmia-Detection-DMTM
 ## License
 
 This project is licensed under the MIT License — see [LICENSE](LICENSE) for details.
