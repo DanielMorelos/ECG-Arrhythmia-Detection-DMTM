@@ -31,8 +31,10 @@ Results were obtained via stratified 5-fold cross-validation with out-of-fold (O
 | Figure | Description |
 |---|---|
 | ![Training curves](results/figures/training_curves.png) | Loss, accuracy and F1-macro curves per fold |
+| ![Training curves (aggregated)](results/figures/training_curves_aggregated_double_column.png) | Loss, accuracy and F1-macro — mean ± std across folds |
 | ![Performance dashboard](results/figures/performance_dashboard.png) | 5-fold CV performance dashboard |
 | ![Fine-tuning curves](results/figures/finetuning_curves.png) | Fine-tuning curves per fold |
+| ![Fine-tuning curves (aggregated)](results/figures/training_curves_aggregated_finetuned_double_column.png) | Fine-tuning — mean ± std across folds |
 | ![Confusion matrix](results/figures/final_test_confusion_matrix.png) | Confusion matrix on external test set |
 | ![Composite summary](results/figures/composite_dashboard_summary.png) | Publication-ready summary figure |
 
