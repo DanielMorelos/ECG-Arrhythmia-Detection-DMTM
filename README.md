@@ -25,11 +25,13 @@ The model contains approximately **293,000 trainable parameters**, offering a fa
 
 | Metric | Value |
 |---|---|
-| OOF Macro F1-score (5-fold CV) | **0.9216 ± 0.0046** |
-| F1 — Normal rhythm | 0.95 |
-| F1 — Arrhythmia | 0.90 |
-| F1 — Noise | 0.92 |
-| External test set — Weighted F1-score | **0.9297** |
+| OOF Macro F1-score (5-fold CV) | **0.9221 ± 0.0025** |
+| F1 — Normal rhythm | 0.9459 ± 0.0018 |
+| F1 — Arrhythmia | 0.9034 ± 0.0056 |
+| F1 — Noise | 0.9168 ± 0.0030 |
+| F1 — Weighted (CV) | 0.9325 ± 0.0022 |
+| Accuracy (CV) | 0.9326 ± 0.0022 |
+| External test set — Weighted F1-score | **0.9306** |
 
 Results were obtained via stratified 5-fold cross-validation with out-of-fold (OOF) prediction aggregation, followed by evaluation on an independent, patient-level held-out test set (patients not seen during training or validation).
 
