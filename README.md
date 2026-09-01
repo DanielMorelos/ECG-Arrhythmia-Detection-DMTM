@@ -196,7 +196,7 @@ If you use this work, please cite the associated manuscript (citation details to
 18. N. Strodthoff, P. Wagner, T. Schaeffter, and W. Samek, "Deep learning for ECG analysis: Benchmarks and insights from PTB-XL," *IEEE Journal of Biomedical and Health Informatics*, vol. 25, no. 5, pp. 1519–1528, May 2021, doi: [10.1109/JBHI.2020.3022989](https://doi.org/10.1109/JBHI.2020.3022989).
 19. M. Kachuee, S. Fazeli, and M. Sarrafzadeh, "ECG heartbeat classification: A deep transferable representation," in *Proc. 2018 IEEE Int. Conf. on Healthcare Informatics (ICHI)*, 2018, pp. 443–444, doi: [10.1109/ICHI.2018.00092](https://doi.org/10.1109/ICHI.2018.00092).
 20. X. Bai, X. Dong, Y. Li, R. Liu, and H. Zhang, "A hybrid deep learning network for automatic diagnosis of cardiac arrhythmia based on 12-lead ECG," *Scientific Reports*, vol. 14, no. 1, p. 2441, Oct. 2024, doi: [10.1038/s41598-024-75531-w](https://doi.org/10.1038/s41598-024-75531-w).
-21. D. Morelos and T. Monsalve, "ECG-Arrhythmia-Detection-DMTM," GitHub repository, 2026. [Online]. Available: https://github.com/DanielMorelos/ECG-Arrhythmia-Detection-DMTM
+21. D. J. Morelos and L. T. Monsalve, "ECG-Arrhythmia-Detection-DMTM," GitHub repository, 2026. [Online]. Available: https://github.com/DanielMorelos/ECG-Arrhythmia-Detection-DMTM
 ## License
 
 This project is licensed under the MIT License — see [LICENSE](LICENSE) for details.
