@@ -1,10 +1,10 @@
-# ECGNet-SE-BiGRU: Robust Arrhythmia Detection from Single-Lead ECG Signals
+# ECGNet-SE-BiGRU: Squeeze-and-Excitation Attention and Bidirectional Recurrence for Robust Arrhythmia Recognition
 
 A compact, attention-based deep learning model for automatic classification of single-lead ECG segments into **Normal rhythm**, **Arrhythmia**, and **Noise**, trained and evaluated on an intentionally limited subset of the [Icentia11k](https://physionet.org/content/icentia11k-continuous-ecg/1.0/) database to emulate realistic clinical development conditions (limited annotated data and computational resources).
 
 ## Associated Manuscript
 
-- **Title:** Robust Arrhythmia Detection from Single-Lead ECG Signals
+- **Title:** Squeeze-and-Excitation Attention and Bidirectional Recurrence for Robust Arrhythmia Recognition
 - **Authors:** Laura T. Monsalve, Daniel J. Morelos and Carlos A. Fajardo
 - **Submitted to:** IEEE Latin America Transactions
 - **Manuscript / Submission ID:** []
@@ -70,6 +70,30 @@ Input (2049, 1)
  -> Dense(128, ReLU) -> Dropout(0.5)
  -> Dense(3, Softmax)
 ```
+## Hyperparameters
+
+The table below summarizes the full hyperparameter configuration used for training, fine-tuning, and threshold optimization.
+
+| Hyperparameter | Value |
+|---|---|
+| Input shape | 2049 × 1 |
+| Batch size | 32 |
+| Optimizer | AdamW |
+| Initial learning rate | 1 × 10⁻³ |
+| Weight decay | 0.01 |
+| Max epochs (initial training) | 40 |
+| LR reduction factor / patience | 0.5 / 3 epochs |
+| Minimum learning rate | 1 × 10⁻⁶ |
+| Focal loss γ | 3.0 |
+| Focal loss α | 1.0 |
+| Label smoothing | 0.05 |
+| SE reduction ratio | 8 |
+| Fine-tuning learning rate | 1 × 10⁻⁵ |
+| Fine-tuning epochs (max) | 15 |
+| Fine-tuning early-stopping patience | 5 epochs |
+| Threshold grid range | 0.20 – 0.80 |
+| Threshold grid steps | 15 |
+| Random seed | 42 |
 
 ## Repository Structure
 
@@ -140,10 +164,11 @@ python src/threshold_optimization.py \
 ## Methodology Summary
 
 1. **Cross-validation**: Stratified 5-fold CV (random_state=42), preserving class proportions across folds.
-2. **Optimization**: AdamW (lr=0.001, weight_decay=0.01), max 40 epochs, batch size 32, ReduceLROnPlateau (factor 0.5, patience 3), EarlyStopping on validation loss.
-3. **Fine-tuning**: Last 3 layers unfrozen and fine-tuned for up to 15 epochs at a reduced learning rate (1e-5).
-4. **Threshold optimization**: Grid search over per-class decision thresholds (0.20–0.80) on OOF probabilities to maximize macro F1-score.
-5. **Final inference**: Soft-voting ensemble across the five fold-specific (fine-tuned) models, followed by optimized threshold decoding.
+2. **Loss function**: Multiclass focal loss (γ = 3.0, α = 1.0) with label smoothing (ε = 0.05) to address class imbalance and reduce overconfidence.
+3. **Optimization**: AdamW (lr=0.001, weight_decay=0.01), max 40 epochs, batch size 32, ReduceLROnPlateau (factor 0.5, patience 3), EarlyStopping on validation loss.
+4. **Fine-tuning**: Last 3 layers unfrozen and fine-tuned for up to 15 epochs at a reduced learning rate (1e-5).
+5. **Threshold optimization**: Grid search over per-class decision thresholds (0.20–0.80) on OOF probabilities to maximize macro F1-score.
+6. **Final inference**: Soft-voting ensemble across the five fold-specific (fine-tuned) models, followed by optimized threshold decoding.
 
 ## Citation
 
